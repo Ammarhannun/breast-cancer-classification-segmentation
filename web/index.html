@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breast Ultrasound Analyser</title>
+<meta name="description" content="ResNet-50 classification and U-Net lesion segmentation of breast ultrasound images, running entirely in your browser.">
+<style>
+  :root {
+    --bg: #f7f7f9; --card: #ffffff; --text: #1b1d22; --muted: #5d6270; --border: #e3e5ea;
+    --accent: #c2185b; --accent-soft: #fce4ec; --benign: #2e7d32; --malignant: #c62828; --normal: #1565c0;
+    --warn-bg: #fff8e1; --warn-border: #f2d27a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121317; --card: #1b1d23; --text: #eceef2; --muted: #9aa0ad; --border: #2c2f37;
+      --accent: #f06292; --accent-soft: #3a1d2a; --benign: #66bb6a; --malignant: #ef5350; --normal: #64b5f6;
+      --warn-bg: #2b2616; --warn-border: #5c4d1e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 1.9rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); margin: 0 0 16px; max-width: 70ch; }
+  .warn { background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 10px;
+          padding: 10px 14px; font-size: .92rem; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; min-width: 0; }
+  .card h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  #drop { border: 2px dashed var(--border); border-radius: 12px; min-height: 260px; display: flex;
+          align-items: center; justify-content: center; text-align: center; cursor: pointer; padding: 12px;
+          transition: border-color .15s, background .15s; }
+  #drop.over, #drop:hover { border-color: var(--accent); background: var(--accent-soft); }
+  #drop img { max-width: 100%; max-height: 340px; border-radius: 8px; display: block; }
+  #drop p { margin: 0; color: var(--muted); }
+  .examples { margin-top: 14px; }
+  .examples span { font-size: .85rem; color: var(--muted); }
+  .examples .row { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+  .examples button { border: 1px solid var(--border); background: none; padding: 0; border-radius: 8px;
+                     cursor: pointer; overflow: hidden; width: 84px; color: var(--text); font-size: .78rem; }
+  .examples button img { width: 84px; height: 64px; object-fit: cover; display: block; }
+  .examples button:hover { border-color: var(--accent); }
+  #status { font-size: .9rem; color: var(--muted); margin-top: 12px; min-height: 1.5em; }
+  .bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+  #verdict { font-size: 1.5rem; font-weight: 700; margin: 0 0 12px; min-height: 2.2rem; }
+  .prob { display: grid; grid-template-columns: 90px 1fr 52px; align-items: center; gap: 10px; margin: 6px 0; font-size: .95rem; }
+  .prob .track { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
+  .prob .fill { height: 100%; width: 0; border-radius: 5px; transition: width .35s; }
+  .prob .pct { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  #overlay { width: 100%; height: auto; border-radius: 8px; display: block; margin-top: 16px; background: var(--border); }
+  #note { font-size: .92rem; color: var(--muted); margin-top: 10px; }
+  footer { margin-top: 32px; color: var(--muted); font-size: .88rem; }
+  footer a { color: var(--accent); }
+  .placeholder { color: var(--muted); font-size: .95rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Breast Ultrasound Analyser</h1>
+  <p class="lede">Upload a breast ultrasound image. A <b>ResNet-50</b> classifies it as benign, malignant or normal,
+    and a <b>U-Net</b> outlines the suspected lesion. Both models run <b>entirely in your browser</b>,
+    so your image is never uploaded anywhere.</p>
+  <div class="warn">⚠️ Research and portfolio demo only. <b>Not a medical device</b> and not for diagnosis.</div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Image</h2>
+      <label id="drop" tabindex="0">
+        <input id="file" type="file" accept="image/*" hidden>
+        <p id="dropText">Drop an ultrasound image here<br>or click to choose a file</p>
+      </label>
+      <div class="examples">
+        <span>Or try a held-out test image:</span>
+        <div class="row" id="exampleRow"></div>
+      </div>
+      <div id="status">Loading models…</div>
+      <div class="bar"><div id="barFill"></div></div>
+    </section>
+
+    <section class="card">
+      <h2>Result</h2>
+      <div id="result"><p class="placeholder">Results will appear here.</p></div>
+    </section>
+  </div>
+
+  <footer>
+    Models trained on the BUSI breast ultrasound dataset (780 images).
+    Classifier test accuracy ~85%; segmentation test IoU ~0.67 on lesion images.
+    Code &amp; training: <a href="https://github.com/Ammarhannun/breast-cancer-classification-segmentation">GitHub</a>
+    · Models: <a id="modelLink" href="#">Hugging Face</a>
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js"></script>
+<script>
+const MODEL_REPO = "AmmarHannun/breast-ultrasound-models";
+const params = new URLSearchParams(location.search);
+const MODEL_BASE = params.get("models") || `https://huggingface.co/${MODEL_REPO}/resolve/main/`;
+document.getElementById("modelLink").href = `https://huggingface.co/${MODEL_REPO}`;
+
+const CLASSES = ["benign", "malignant", "normal"];
+const COLORS = { benign: "var(--benign)", malignant: "var(--malignant)", normal: "var(--normal)" };
+const MEAN = [0.485, 0.456, 0.406], STD = [0.229, 0.224, 0.225];
+const EXAMPLES = ["benign", "malignant", "normal"];
+
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
+ort.env.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency || 1);
+
+const $ = id => document.getElementById(id);
+let clsSession, segSession, currentImg = null;
+
+// ---------- model loading with a progress bar ----------
+async function fetchWithProgress(url, onBytes) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${res.status} fetching ${url}`);
+  const total = +res.headers.get("content-length") || 0;
+  const reader = res.body.getReader();
+  const chunks = []; let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); got += value.length; onBytes(got, total);
+  }
+  const buf = new Uint8Array(got); let off = 0;
+  for (const c of chunks) { buf.set(c, off); off += c.length; }
+  return buf;
+}
+
+async function loadModels() {
+  const files = ["classifier.onnx", "segmenter.onnx"];
+  const loaded = [0, 0], totals = [98e6, 98e6];
+  const update = () => {
+    const sum = loaded[0] + loaded[1], tot = totals[0] + totals[1];
+    $("barFill").style.width = `${Math.min(100, 100 * sum / tot)}%`;
+    $("status").textContent = `Downloading models… ${(sum / 1e6).toFixed(0)} / ${(tot / 1e6).toFixed(0)} MB (only the first time)`;
+  };
+  const bufs = await Promise.all(files.map((f, i) =>
+    fetchWithProgress(MODEL_BASE + f, (got, total) => { loaded[i] = got; if (total) totals[i] = total; update(); })));
+  $("status").textContent = "Starting models…";
+  const opts = { executionProviders: ["wasm"] };
+  [clsSession, segSession] = await Promise.all(bufs.map(b => ort.InferenceSession.create(b, opts)));
+  $("barFill").parentElement.style.display = "none";
+  $("status").textContent = "Ready. Choose an image.";
+  if (currentImg) analyse(currentImg);
+}
+
+// ---------- preprocessing ----------
+function toTensor(img, size) {
+  const c = document.createElement("canvas"); c.width = c.height = size;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0, size, size);
+  const px = ctx.getImageData(0, 0, size, size).data;
+  const n = size * size, out = new Float32Array(3 * n);
+  for (let i = 0; i < n; i++)
+    for (let ch = 0; ch < 3; ch++)
+      out[ch * n + i] = (px[i * 4 + ch] / 255 - MEAN[ch]) / STD[ch];
+  return new ort.Tensor("float32", out, [1, 3, size, size]);
+}
+
+const softmax = a => { const m = Math.max(...a), e = a.map(v => Math.exp(v - m)), s = e.reduce((x, y) => x + y); return e.map(v => v / s); };
+
+// ---------- inference + drawing ----------
+async function analyse(img) {
+  if (!clsSession) { $("status").textContent = "Image loaded. Waiting for models to finish downloading…"; return; }
+  $("status").textContent = "Analysing…";
+  const t0 = performance.now();
+
+  const clsOut = await clsSession.run({ input: toTensor(img, 224) });
+  const probs = softmax(Array.from(clsOut.logits.data));
+  const segOut = await segSession.run({ input: toTensor(img, 256) });
+  const logits = segOut.logits.data, S = 256;
+  const mask = new Uint8Array(S * S); let area = 0;
+  for (let i = 0; i < S * S; i++) { if (logits[i] > 0) { mask[i] = 1; area++; } }   // sigmoid > 0.5  <=>  logit > 0
+  const areaPct = 100 * area / (S * S);
+
+  renderResult(img, probs, mask, areaPct, performance.now() - t0);
+  $("status").textContent = "Done. Try another image.";
+}
+
+function drawOverlay(img, mask) {
+  const S = 256, m = document.createElement("canvas"); m.width = m.height = S;
+  const mctx = m.getContext("2d"), id = mctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const i = y * S + x; if (!mask[i]) continue;
+    const edge = x === 0 || y === 0 || x === S - 1 || y === S - 1 ||
+      !mask[i - 1] || !mask[i + 1] || !mask[i - S] || !mask[i + S];
+    id.data.set(edge ? [255, 40, 40, 255] : [230, 40, 40, 110], i * 4);
+  }
+  mctx.putImageData(id, 0, 0);
+  const out = $("overlay");
+  const scale = Math.min(1, 900 / img.naturalWidth);
+  out.width = Math.round(img.naturalWidth * scale); out.height = Math.round(img.naturalHeight * scale);
+  const ctx = out.getContext("2d");
+  ctx.drawImage(img, 0, 0, out.width, out.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(m, 0, 0, out.width, out.height);
+}
+
+function renderResult(img, probs, mask, areaPct, ms) {
+  const top = CLASSES[probs.indexOf(Math.max(...probs))];
+  const rows = CLASSES.map((c, i) => `
+    <div class="prob"><span>${c[0].toUpperCase() + c.slice(1)}</span>
+      <div class="track"><div class="fill" style="background:${COLORS[c]}" data-w="${(100 * probs[i]).toFixed(1)}"></div></div>
+      <span class="pct">${(100 * probs[i]).toFixed(0)}%</span></div>`).join("");
+  let note;
+  if (areaPct < 0.5) note = "No clear lesion region found.";
+  else if (top === "normal") note = `The classifier says normal, but the segmenter marked ${areaPct.toFixed(1)}% of the image. Treat the outline with caution.`;
+  else note = `Suspected lesion outlined in red (about ${areaPct.toFixed(1)}% of the image).`;
+  $("result").innerHTML = `
+    <div id="verdict" style="color:${COLORS[top]}">${top[0].toUpperCase() + top.slice(1)}</div>
+    ${rows}
+    <canvas id="overlay" aria-label="Ultrasound with suspected lesion outlined"></canvas>
+    <div id="note">${note} <span style="opacity:.7">(${ms.toFixed(0)} ms)</span></div>`;
+  drawOverlay(img, mask);
+  requestAnimationFrame(() => document.querySelectorAll(".fill").forEach(f => f.style.width = f.dataset.w + "%"));
+}
+
+// ---------- input handling ----------
+function useImageSrc(src) {
+  const img = new Image();
+  img.onload = () => {
+    currentImg = img;
+    $("drop").innerHTML = "";
+    $("drop").append($("file") || makeFileInput(), img.cloneNode());
+    analyse(img);
+  };
+  img.onerror = () => { $("status").textContent = "Could not read that image. Try a PNG or JPG."; };
+  img.src = src;
+}
+function makeFileInput() {
+  const f = document.createElement("input"); f.type = "file"; f.accept = "image/*"; f.hidden = true; f.id = "file";
+  f.addEventListener("change", onFile); return f;
+}
+function onFile(e) { const f = e.target.files[0]; if (f) useImageSrc(URL.createObjectURL(f)); }
+
+$("file").addEventListener("change", onFile);
+const drop = $("drop");
+drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } });
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) useImageSrc(URL.createObjectURL(f)); });
+
+for (const name of EXAMPLES) {
+  const b = document.createElement("button");
+  b.innerHTML = `<img src="examples/${name}.png" alt="${name} example"><div>${name}</div>`;
+  b.onclick = () => useImageSrc(`examples/${name}.png`);
+  $("exampleRow").append(b);
+}
+
+loadModels().catch(err => { $("status").textContent = "Could not load the models: " + err.message; console.error(err); });
+</script>
+</body>
+</html>

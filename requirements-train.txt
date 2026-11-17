@@ -2,3 +2,6 @@
 -r requirements.txt
 huggingface_hub
 scikit-learn
+onnx
+onnxruntime
+onnxscript

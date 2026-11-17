@@ -2,7 +2,8 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Ammarhannun/breast-cancer-classification-segmentation/blob/deploy-app/train_and_deploy_colab.ipynb)
 
-**Live demo:** _coming soon (Hugging Face Spaces)_
+**Live demo (runs in your browser):** https://huggingface.co/spaces/AmmarHannun/breast-ultrasound-analyser  
+**Trained models:** https://huggingface.co/AmmarHannun/breast-ultrasound-models
 
 Upload a breast ultrasound image and the app:
 1. **Classifies** it as benign, malignant or normal (ResNet-50, transfer learning)
@@ -28,13 +29,15 @@ The original notebook run reached **83.6% test accuracy** and **0.64 IoU**.
 ## Project structure
 
 ```
-app.py                      Gradio web app (what the Space runs)
+web/index.html              In-browser demo (ONNX Runtime Web): what the Space serves
+app.py                      Optional Gradio app for running locally with PyTorch
 bcus/models.py              ResNet-50 classifier + U-Net segmenter definitions
 bcus/preprocess.py          Shared preprocessing (training and app use the same code)
 bcus/data.py                Dataset loading, mask filtering, image/mask pairing
 train_classifier.py         Trains the classifier -> weights/classifier.pt
 train_segmenter.py          Trains the segmenter  -> weights/segmenter.pt
-deploy_space.py             Uploads app + weights to a Hugging Face Space
+export_onnx.py              Converts the weights to ONNX for the browser
+publish.py                  Uploads models + demo to Hugging Face (free model repo + static Space)
 train_and_deploy_colab.ipynb  One-click train + deploy on a free Colab GPU
 breastCancerClassificationAndSegmentation.ipynb  Original exploratory notebook
 ```
@@ -53,10 +56,10 @@ python train_segmenter.py
 python app.py
 ```
 
-**Deploy to Hugging Face Spaces:**
+**Publish to Hugging Face** (free; the demo is a static page, so the models run in the visitor's browser):
 ```bash
-huggingface-cli login
-python deploy_space.py <hf-username>/breast-ultrasound-analyser
+hf auth login
+python publish.py
 ```
 
 ## Method
