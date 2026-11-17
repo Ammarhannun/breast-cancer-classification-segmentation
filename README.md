@@ -15,12 +15,17 @@ Upload a breast ultrasound image and the app:
 
 ## Results
 
+All scores are on the held-out **test set** (156 images, never used for training or for choosing the best epoch).
+
 | Task | Model | Metric | Score |
 |---|---|---|---|
-| Classification | ResNet-50 (layer4 + new head fine-tuned) | Test accuracy | _TBD after retrain_ |
-| Segmentation | U-Net, ResNet-34 encoder | Mean IoU / Dice | _TBD after retrain_ |
+| Classification | ResNet-50 (layer4 + new head fine-tuned) | Accuracy | **84.6%** |
+| | | Macro F1 | 0.835 |
+| | | Malignant recall (sensitivity) | 81.0% |
+| Segmentation | U-Net, ResNet-34 encoder | IoU / Dice (lesion images) | **0.673 / 0.759** |
+| | | Normal scans correctly left blank | 88.9% |
 
-The original notebook run reached **83.6% test accuracy** and **0.64 IoU**.
+Most classification errors are benign images predicted as normal (11 of 87) and malignant images predicted as benign (7 of 42). In both models' scores, the run-to-run variation on a GPU is about ±1–2 points.
 
 ## Dataset
 
