@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+# Trained weights are large; they live on the Hugging Face Space, not in git
+weights/*.pt
+.gradio/
+flagged/

@@ -1,0 +1,4 @@
+# Extra packages needed only for training
+-r requirements.txt
+huggingface_hub
+scikit-learn

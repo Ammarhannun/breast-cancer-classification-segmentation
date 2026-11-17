@@ -1,0 +1,9 @@
+# Needed to run the web app (this file is also what Hugging Face Spaces installs)
+# CPU-only PyTorch wheels: much smaller and faster to install on the free Space hardware
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+segmentation-models-pytorch
+gradio
+numpy
+pillow
