@@ -4,6 +4,6 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 # Trained weights are large; they live on the Hugging Face Space, not in git
-weights/*.pt
+weights/
 .gradio/
 flagged/

@@ -145,7 +145,7 @@ async function loadModels() {
   [clsSession, segSession] = await Promise.all(bufs.map(b => ort.InferenceSession.create(b, opts)));
   $("barFill").parentElement.style.display = "none";
   $("status").textContent = "Ready. Choose an image.";
-  if (currentImg) analyse(currentImg);
+  if (currentImg) await analyse(currentImg);
 }
 
 // ---------- preprocessing ----------
@@ -223,11 +223,12 @@ function renderResult(img, probs, mask, areaPct, ms) {
 // ---------- input handling ----------
 function useImageSrc(src) {
   const img = new Image();
+  img.crossOrigin = "anonymous";  // example files are served from HF's CDN; without this the canvas is "tainted"
   img.onload = () => {
     currentImg = img;
     $("drop").innerHTML = "";
     $("drop").append($("file") || makeFileInput(), img.cloneNode());
-    analyse(img);
+    analyse(img).catch(err => { $("status").textContent = "Something went wrong: " + err.message; console.error(err); });
   };
   img.onerror = () => { $("status").textContent = "Could not read that image. Try a PNG or JPG."; };
   img.src = src;

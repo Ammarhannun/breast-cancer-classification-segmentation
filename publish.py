@@ -5,9 +5,11 @@
 3. Uploads web/index.html + examples to a static Space: <user>/breast-ultrasound-analyser
 
 Needs a Hugging Face write token (HF_TOKEN env var, or `hf auth login`).
-Usage: python publish.py
+Usage: python publish.py            (everything)
+       python publish.py --site-only   (only re-upload the web page + examples)
 """
 import json
+import sys
 import tempfile
 from pathlib import Path
 
@@ -39,6 +41,9 @@ def main():
     api = HfApi()
     user = api.whoami()["name"]
     model_repo, space_repo = f"{user}/{MODEL_NAME}", f"{user}/{SPACE_NAME}"
+    if "--site-only" in sys.argv:
+        publish_site(api, model_repo, space_repo)
+        return
 
     print("1/3 Converting to ONNX…")
     export_onnx.main()
@@ -68,7 +73,10 @@ Classes: benign, malignant, normal.
         api.upload_file(path_or_fileobj=str(Path(tmp) / "README.md"), path_in_repo="README.md", repo_id=model_repo)
     api.upload_folder(folder_path=str(ROOT / "weights"), repo_id=model_repo,
                       allow_patterns=["*.pt", "*.onnx", "*.json"], commit_message="Upload trained models")
+    publish_site(api, model_repo, space_repo)
 
+
+def publish_site(api, model_repo, space_repo):
     print(f"3/3 Publishing static Space https://huggingface.co/spaces/{space_repo}")
     api.create_repo(space_repo, repo_type="space", space_sdk="static", exist_ok=True)
     space_card = f"""---
