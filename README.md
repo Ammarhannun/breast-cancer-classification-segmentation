@@ -1,6 +1,6 @@
 # Breast Ultrasound Classification & Segmentation
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Ammarhannun/breast-cancer-classification-segmentation/blob/deploy-app/train_and_deploy_colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Ammarhannun/breast-cancer-classification-segmentation/blob/main/train_and_deploy_colab.ipynb)
 
 **Live demo (runs in your browser):** https://huggingface.co/spaces/AmmarHannun/breast-ultrasound-analyser  
 **Trained models:** https://huggingface.co/AmmarHannun/breast-ultrasound-models
