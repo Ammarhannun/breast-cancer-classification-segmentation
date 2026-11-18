@@ -164,9 +164,40 @@ function toTensor(img, size) {
 
 const softmax = a => { const m = Math.max(...a), e = a.map(v => Math.exp(v - m)), s = e.reduce((x, y) => x + y); return e.map(v => v / s); };
 
+// ---------- "is this even an ultrasound?" check ----------
+// Breast ultrasound scans are greyscale (apart from small coloured markers or text).
+// Measure how much of the image is clearly coloured; if a lot of it is, warn instead of predicting.
+function colourfulFraction(img) {
+  const S = 96, c = document.createElement("canvas"); c.width = c.height = S;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, S, S);
+  const px = ctx.getImageData(0, 0, S, S).data;
+  let coloured = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    const r = px[i], g = px[i + 1], b = px[i + 2];
+    if (Math.max(r, g, b) - Math.min(r, g, b) > 40) coloured++;   // saturation in 0-255 units
+  }
+  return coloured / (S * S);
+}
+const COLOUR_LIMIT = 0.10;  // more than 10% clearly coloured pixels -> probably not an ultrasound
+
+function renderNotUltrasound(img, frac) {
+  $("result").innerHTML = `
+    <div id="verdict" style="color:var(--muted)">Not an ultrasound?</div>
+    <div class="warn" style="margin:0 0 12px">This image is <b>${(100 * frac).toFixed(0)}% colour</b>, but breast ultrasound scans
+      are greyscale. The models only know <i>benign / malignant / normal</i>, so on other pictures they still give an answer,
+      and it won't mean anything.</div>
+    <button id="anyway" type="button" style="border:1px solid var(--border);background:none;color:var(--text);
+      padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit">Analyse anyway</button>`;
+  $("anyway").onclick = () => analyse(img, true).catch(err => { $("status").textContent = "Something went wrong: " + err.message; });
+  $("status").textContent = "This doesn't look like a breast ultrasound.";
+}
+
 // ---------- inference + drawing ----------
-async function analyse(img) {
+async function analyse(img, force = false) {
   if (!clsSession) { $("status").textContent = "Image loaded. Waiting for models to finish downloading…"; return; }
+  const frac = colourfulFraction(img);
+  if (!force && frac > COLOUR_LIMIT) { renderNotUltrasound(img, frac); return; }
   $("status").textContent = "Analysing…";
   const t0 = performance.now();
 
@@ -179,6 +210,7 @@ async function analyse(img) {
   const areaPct = 100 * area / (S * S);
 
   renderResult(img, probs, mask, areaPct, performance.now() - t0);
+  if (frac > COLOUR_LIMIT) $("note").insertAdjacentHTML("afterbegin", "<b>⚠️ Not a breast ultrasound, so this result is meaningless.</b> ");
   $("status").textContent = "Done. Try another image.";
 }
 
